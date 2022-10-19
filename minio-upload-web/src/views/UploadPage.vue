@@ -173,7 +173,7 @@ const handleRemoveFile = (uploadFile, uploadFiles) => {
     const queueObject = fileUploadChunkQueue[uploadFile.uid]
     if (queueObject) {
         queueObject.stop()
-        fileUploadChunkQueue[undefined]
+        fileUploadChunkQueue[uploadFile.uid] = undefined
     }
 }
 
