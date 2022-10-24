@@ -51,9 +51,21 @@ const getTaskInfo = async (file) => {
  */
 const handleUpload = (file, taskRecord, options) => {
 
+    let lastUploadedSize = 0; // 上次断点续传时上传的总大小
     let uploadedSize = 0 // 已上传的大小
     const totalSize = file.size || 0 // 文件总大小
+    let startMs = new Date().getTime(); // 开始上传的时间
     const { exitPartList, chunkSize, chunkNum, fileIdentifier } = taskRecord
+
+    // 获取从开始上传到现在的平均速度（byte/s）
+    const getSpeed = () => {
+        // 已上传的总大小 - 上次上传的总大小（断点续传）= 本次上传的总大小（byte）
+        const intervalSize = uploadedSize - lastUploadedSize
+        const nowMs = new Date().getTime()
+        // 时间间隔（s）
+        const intervalTime = (nowMs - startMs) / 1000
+        return intervalSize / intervalTime
+    }
 
     const uploadNext = async (partNumber) => {
         const start = new Number(chunkSize) * (partNumber - 1)
@@ -65,9 +77,7 @@ const handleUpload = (file, taskRecord, options) => {
                 url: data,
                 method: 'PUT',
                 data: blob,
-                headers: {
-                    'Content-Type': 'application/octet-stream'
-                }
+                headers: {'Content-Type': 'application/octet-stream'}
             })
             return Promise.resolve({ partNumber: partNumber, uploadedSize: blob.size })
         }
@@ -90,6 +100,12 @@ const handleUpload = (file, taskRecord, options) => {
             const percent = Math.round(uploadedSize / totalSize * 100).toFixed(2);
             onProgress({percent: percent})
         }
+
+        const speed = getSpeed();
+        const remainingTime = speed != 0 ? Math.ceil((totalSize - uploadedSize) / speed) + 's' : '未知'
+        console.log('剩余大小：', (totalSize - uploadedSize) / 1024 / 1024, 'mb');
+        console.log('当前速度：', (speed / 1024 / 1024).toFixed(2), 'mbps');
+        console.log('预计完成：', remainingTime);
     }
 
 
@@ -109,7 +125,8 @@ const handleUpload = (file, taskRecord, options) => {
         for (let partNumber = 1; partNumber <= chunkNum; partNumber++) {
             const exitPart = (exitPartList || []).find(exitPart => exitPart.partNumber == partNumber)
             if (exitPart) {
-                // 分片已上传完成，累计到上传完成的总额中
+                // 分片已上传完成，累计到上传完成的总额中,同时记录一下上次断点上传的大小，用于计算上传速度
+                lastUploadedSize += new Number(exitPart.size)
                 updateProcess(exitPart.size)
             } else {
                 queue.push(() => uploadNext(partNumber).then(res => {
@@ -185,7 +202,7 @@ const handleRemoveFile = (uploadFile, uploadFiles) => {
             drag
             action="/"
             multiple
-            :http-request="handleHttpRequest" 
+            :http-request="handleHttpRequest"
             :on-remove="handleRemoveFile">
             <el-icon class="el-icon--upload"><upload-filled /></el-icon>
             <div class="el-upload__text">
