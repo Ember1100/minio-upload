@@ -57,7 +57,7 @@ public class SysUploadTaskServiceImpl extends ServiceImpl<SysUploadTaskMapper, S
         Date currentDate = new Date();
         String bucketName = minioProperties.getBucket();
         String fileName = param.getFileName();
-        String suffix = fileName.substring(fileName.lastIndexOf("."), fileName.length());
+        String suffix = fileName.substring(fileName.lastIndexOf(".")+1, fileName.length());
         String key = StrUtil.format("{}/{}.{}", DateUtil.format(currentDate, "YYYY-MM-dd"), IdUtil.randomUUID(), suffix);
         String contentType = MediaTypeFactory.getMediaType(key).orElse(MediaType.APPLICATION_OCTET_STREAM).toString();
         ObjectMetadata objectMetadata = new ObjectMetadata();
